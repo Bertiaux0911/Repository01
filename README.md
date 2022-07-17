@@ -2,9 +2,9 @@
 個人的に作ったものをアップロードするリポジトリ。
 
 # ウマ娘選択肢チェッカー
-・C#
-・Windows Form Application
-・OpenCVSharp（テンプレートマッチング）
+・C#  
+・Windows Form Application  
+・OpenCVSharp（テンプレートマッチング）  
 
 ウマ娘のPC版アプリのイベント中選択肢を判定、各選択肢の効果を表示するWindows Form Application。
 ローカルに保存しているマスタ画像と、現在実行中のアプリ画面とをOpenCVSharpのテンプレートマッチングで比較しています。
