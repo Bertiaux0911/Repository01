@@ -1,0 +1,213 @@
+Option Explicit
+
+'画像サイズ「大きめ」の場合の画像設定
+Const WIDTH_OF_PICTURE_BIG As Double = 28 '画像横幅（cm）
+Const LINE_INTERVAL_BIG As Integer = 5 '画像の間隔（行）
+
+'画像サイズ「小さめ」の場合の画像設定
+Const WIDTH_OF_PICTURE_SMALL As Double = 21 '画像横幅（cm）
+Const LINE_INTERVAL_SMALL As Integer = 5 '画像の間隔（行）
+
+'画像サイズ「変えない（原寸）」の場合の画像設定
+Const lINE_INTERVAL_FULL As Integer = 5 '画像の間隔（行）
+
+Sub mainInsertPicture()
+    '対象フォルダ
+    Dim targetFolder As String
+    targetFolder = Range("C7").Value
+    
+    '画像サイズを変更するかどうか
+    Dim flgChangePictureSize As Boolean
+    If Range("C8").Value <> "変えない（原寸）" Then
+        flgChangePictureSize = True
+    End If
+
+    '画像設定（0:画像横幅、1:画像の感覚（行））
+    Dim confOfPicture() As Double
+    confOfPicture() = setPictureSize(Range("C8").Value)
+    
+    '画像のファイル名を書くかどうか
+    Dim flgWriteFileName As Boolean
+    If Range("C9").Value = "書く" Then
+        flgWriteFileName = True
+    End If
+
+    '印刷範囲設定するかどうか
+    Dim flgPrintOutAreaSet As Boolean
+    If Range("C10").Value = "する" Then
+       flgPrintOutAreaSet = True
+    End If
+    
+    Dim fileName As String 'ファイル名
+    Dim filePath As String 'ファイルパス
+    
+    Dim currentRow As Integer '現在行
+    Dim currentCol As Integer '現在列
+    
+    Dim currentCell As Range '現在セル
+    Dim currentShape As Shape '現在選択中の画像
+    
+    Dim subFolder As Object 'サブフォルダのオブジェクト
+    
+    With CreateObject("Scripting.FileSystemObject")
+        
+        For Each subFolder In .GetFolder(targetFolder).subFolders
+            
+            '「テンプレート」シートをコピーし、最後尾に新しくシートを作成する
+            Worksheets("テンプレート").Copy After:=Worksheets(Worksheets.Count)
+            
+            'サブフォルダ名をシート名に設定
+            ActiveSheet.Name = subFolder.Name
+            
+            '現在行と列を取得
+            currentRow = ActiveCell.Row
+            currentCol = ActiveCell.Column
+            
+            'サブフォルダ内のファイルを読み込む
+            fileName = Dir(subFolder + "\")
+            Do While fileName <> ""
+                
+                If isPicture(fileName) = True Then
+                    '読み込んだファイルが画像の場合
+                    'ファイルのフルパスを設定
+                    filePath = targetFolder + "\" + subFolder.Name + "\" + fileName
+                    
+                    '挿入先セルを選択
+                    Cells(currentRow, currentCol).Select
+                    Set currentCell = ActiveCell
+                    
+                    If flgWriteFileName Then
+                        '挿入先セルにファイル名を書く
+                        currentCell.Value = fileName
+                    End If
+                    
+                    '挿入先セルの右下セルに画像を挿入
+                    Set currentShape = ActiveSheet.Shapes.AddPicture( _
+                        fileName:=filePath, _
+                        LinkToFile:=False, _
+                        SaveWithDocument:=True, _
+                        Left:=currentCell.Offset(1, 1).Left, _
+                        Top:=currentCell.Offset(1, 1).Top, _
+                        Width:=-1, _
+                        Height:=-1)
+                    
+                    If flgChangePictureSize Then
+                        '画像サイズ変更する場合
+                        '画像サイズを調整
+                        With currentShape
+                            .LockAspectRatio = True '縦横比を固定
+                            .Width = confOfPicture(0)
+                        End With
+                    End If
+                    
+                    '画像を挿入した行を取得
+                    currentRow = getRowFromHeight(currentCell, currentShape.Height) + confOfPicture(1)
+                    
+                    If flgPrintOutAreaSet Then
+                        '印刷範囲設定する場合
+                        '改ページ指定
+                        ActiveSheet.HPageBreaks.Add Range(Cells(currentRow, 1).Address)
+                        
+                        '印刷範囲を改ページ部分まで広げる
+                        ActiveSheet.PageSetup.PrintArea = Range(Cells(currentRow, 1).Offset(-1, 0).Address, ActiveSheet.PageSetup.PrintArea).Address
+                    End If
+                                        
+                End If
+                
+                '次のファイルを取得
+                fileName = Dir()
+                
+            Loop
+                        
+        Next subFolder
+        
+    End With
+
+End Sub
+
+
+'画像設定取得
+Function setPictureSize(pictureSize As String) As Double()
+
+    Dim arr(1) As Double '戻り値用配列
+    
+    Select Case LCase(pictureSize)
+        Case "大きめ"
+            '画像サイズ設定
+            arr(0) = WIDTH_OF_PICTURE_BIG / 0.0036 / 10 'cmをptに変換
+            '画像の間隔（行）設定
+            arr(1) = LINE_INTERVAL_BIG
+        Case "小さめ"
+            '画像サイズ設定
+            arr(0) = WIDTH_OF_PICTURE_SMALL / 0.0036 / 10 'cmをptに変換
+            '画像の間隔（行）設定
+            arr(1) = LINE_INTERVAL_SMALL
+        Case "変えない（原寸）"
+            '画像の間隔（行）設定
+            arr(1) = lINE_INTERVAL_FULL
+    End Select
+    
+    setPictureSize = arr()
+    
+End Function
+
+'画像拡張子の判別
+Function isPicture(fileName As String)
+    
+    Dim extentionOfFile As String '画像拡張子
+    isPicture = True
+    
+    '拡張子の取得
+    extentionOfFile = getExtentionOfFile(fileName)
+    
+    '拡張子の判定
+    If extentionOfFile <> "" Then
+        Select Case LCase(extentionOfFile)
+            Case "jpeg"
+            Case "jpf"
+            Case "gif"
+            Case "png"
+            Case Else
+                isPicture = False
+        End Select
+    Else
+        isPicture = False
+    End If
+    
+End Function
+
+'拡張子の取得
+Function getExtentionOfFile(fileName As String)
+    
+    Dim position As Integer '拡張子位置
+    
+    getExtentionOfFile = ""
+    
+    '拡張子の位置を取得
+    position = InStrRev(fileName, ".")
+    
+    '拡張子の取得
+    If position > 0 Then
+        getExtentionOfFile = Mid(fileName, position + 1)
+    End If
+    
+End Function
+
+'指定したセル位置から指定した高さを超える行を取得する
+Function getRowFromHeight(targetCell As Range, targetHeight As Double)
+    
+    Dim currentHeight As Double '現在の高斎
+    Dim targetRow As Long '戻り値用取得行
+    
+    currentHeight = targetCell.Height
+    targetRow = targetCell.Row
+    
+    Do Until currentHeight > targetHeight
+        '指定した高さに満たない場合
+        targetRow = targetRow + 1
+        currentHeight = currentHeight + targetCell.Offset(targetRow - targetCell.Row).Height
+    Loop
+    
+    getRowFromHeight = targetRow
+    
+End Function
