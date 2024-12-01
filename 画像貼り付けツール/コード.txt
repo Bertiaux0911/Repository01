@@ -57,7 +57,11 @@ Sub mainInsertPicture()
             Worksheets("テンプレート").Copy After:=Worksheets(Worksheets.Count)
             
             'サブフォルダ名をシート名に設定
-            ActiveSheet.Name = subFolder.Name
+            If Len(subFolder.Name) > 31 Then
+                ActiveSheet.Name = Left(subFolder.Name, 31)
+            Else
+                ActiveSheet.Name = subFolder.Name
+            End If
             
             '現在行と列を取得
             currentRow = ActiveCell.Row
@@ -73,7 +77,8 @@ Sub mainInsertPicture()
                     filePath = targetFolder + "\" + subFolder.Name + "\" + fileName
                     
                     '挿入先セルを選択
-                    Cells(currentRow, currentCol).Select
+                    Worksheets(ActiveSheet.Name).Activate
+                    ActiveSheet.Cells(currentRow, currentCol).Select
                     Set currentCell = ActiveCell
                     
                     If flgWriteFileName Then
@@ -163,10 +168,8 @@ Function isPicture(fileName As String)
     '拡張子の判定
     If extentionOfFile <> "" Then
         Select Case LCase(extentionOfFile)
-            Case "jpeg"
-            Case "jpf"
-            Case "gif"
-            Case "png"
+            Case "jpeg", "jpg", "gif", "png", "bmp"
+                isPicture = True
             Case Else
                 isPicture = False
         End Select
@@ -211,3 +214,4 @@ Function getRowFromHeight(targetCell As Range, targetHeight As Double)
     getRowFromHeight = targetRow
     
 End Function
+
